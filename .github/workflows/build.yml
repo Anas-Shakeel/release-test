@@ -66,9 +66,6 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           name: cliapp ${{ github.ref_name }}  # Release title format: cliapp v1.2.0
-          body: |
-            ## Changes in ${{ github.ref_name }}
-            - Describe what's new in this release.
           generate_release_notes: true
           draft: false
           prerelease: false
