@@ -1,0 +1,68 @@
+name: Build and Release cliapp Binaries
+
+on:
+  release:
+    types: [created]  # Runs when a new GitHub release is created
+
+permissions:
+  contents: write  # Needed for uploading release assets
+
+jobs:
+  build:
+    name: Build for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Dependencies
+        run: pip install pyinstaller
+
+      - name: Build Executable
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}  # Extract version from release tag (e.g., v1.1.0)
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            pyinstaller --onefile --name cliapp cliapp/__main__.py
+            mv dist/cliapp.exe cliapp-${VERSION}-windows.exe
+          elif [[ "$RUNNER_OS" == "macOS" ]]; then
+            pyinstaller --onefile --name cliapp cliapp/__main__.py
+            mv dist/cliapp cliapp-${VERSION}-macos
+          else
+            pyinstaller --onefile --name cliapp cliapp/__main__.py
+            mv dist/cliapp cliapp-${VERSION}-linux
+          fi
+        shell: bash
+
+      - name: Upload Binary as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cliapp-${{ github.ref_name }}-${{ runner.os }}
+          path: |
+            cliapp-*
+          if-no-files-found: error
+
+  release:
+    name: Upload Release Assets
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Upload Binaries to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Ensure correct token usage
