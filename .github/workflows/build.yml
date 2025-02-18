@@ -1,11 +1,12 @@
 name: Build and Release cliapp Binaries
 
 on:
-  release:
-    types: [created]  # Runs when a new GitHub release is created
+  push:
+    tags:
+      - "v*"  # Trigger only when a new tag (e.g., v1.2.0) is pushed
 
 permissions:
-  contents: write  # Needed for uploading release assets
+  contents: write  # Required for creating releases and uploading assets
 
 jobs:
   build:
@@ -29,7 +30,7 @@ jobs:
 
       - name: Build Executable
         run: |
-          VERSION=${GITHUB_REF#refs/tags/}  # Extract version from release tag (e.g., v1.1.0)
+          VERSION=${GITHUB_REF#refs/tags/}  # Extract version from tag (e.g., v1.2.0)
           if [[ "$RUNNER_OS" == "Windows" ]]; then
             pyinstaller --onefile --name cliapp cliapp/__main__.py
             mv dist/cliapp.exe cliapp-${VERSION}-windows.exe
@@ -51,7 +52,7 @@ jobs:
           if-no-files-found: error
 
   release:
-    name: Upload Release Assets
+    name: Create GitHub Release & Upload Assets
     needs: build
     runs-on: ubuntu-latest
     steps:
@@ -60,9 +61,17 @@ jobs:
         with:
           path: artifacts
 
-      - name: Upload Binaries to Release
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.ref_name }}
+          name: cliapp ${{ github.ref_name }}  # Release title format: cliapp v1.2.0
+          body: |
+            ## Changes in ${{ github.ref_name }}
+            - Describe what's new in this release.
+          generate_release_notes: true
+          draft: false
+          prerelease: false
           files: artifacts/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Ensure correct token usage
